@@ -1,8 +1,14 @@
+#import pandas as pd
+import re
 import ephem
 import logging
 import settings
-from datetime import date
+from datetime import date, datetime
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
+url = "https://en.wikipedia.org/wiki/List_of_cities_and_towns_in_Russia"
+data = pd.read_html(url)
+russian_cities_names = list(data[0]['Russian name'])
 
 logging.basicConfig(filename='bot.log', level=logging.INFO)
 
@@ -41,6 +47,34 @@ def planet_info(update, context):
     pl_inf = ephem.constellation(planet)
     update.message.reply_text(f"информация по планете: {pl_inf}")
 
+def words_counter(update, context):
+    #убираем все знаки препинания
+    print("вызыван words_counter")
+    text = re.sub(r'[^\w\s]', ' ',update.message.text)
+    #отдельно убираем знаки нижнего подчеркивания (с помощью регулярок чето не получилось)
+    text = text.replace("_"," ").split()[1:]
+    if bool(text):
+        update.message.reply_text(f"количество слов: {len(text)}")
+    else:
+        update.message.reply_text("эй! ты прислал(а) пустое предложение, так нельзя...")
+
+def full_moon_info(update, context):
+    current_date = date.today().strftime("%Y/%m/%d")
+    update.message.reply_text(str(ephem.next_full_moon(current_date))[0:10])
+
+# def cities_game(update, context):
+#     text = update.message.text.lower().split()[1]
+#     city_name = []
+#     while not bool(city_name):
+#         for city in russian_cities_names:
+#             if text[-1] == city.lower()[0]:
+#                 city_name.append(city)
+#                 update.message.reply_text(f"{city.capitalize()}, твой ход")
+                
+#                 break
+#     city_name.clear()
+            
+                
 
 def main():
     mybot = Updater(settings.API_KEY, use_context = True, request_kwargs=PROXY)
@@ -50,6 +84,12 @@ def main():
     dp.add_handler(CommandHandler('start', greet_user))
     # команда /planet название_планеты
     dp.add_handler(CommandHandler('planet', planet_info))
+    # подсчет слов в предложении
+    dp.add_handler(CommandHandler('wordcount', words_counter))
+    # дата полнолуния
+    dp.add_handler(CommandHandler('next_full_moon', full_moon_info))
+    # игра в города
+    #dp.add_handler(CommandHandler('cities', cities_game))
     # эхо бот
     dp.add_handler(MessageHandler(Filters.text, talk_to_me))
 
